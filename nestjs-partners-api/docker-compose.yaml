@@ -1,0 +1,19 @@
+services:
+
+  # app:
+  #   build: .
+  #   ports:
+  #     - 3000:3000
+  #   volumes:
+  #     - .:/home/node/app
+
+  db:
+    image: mysql:8.4
+    container_name: partners-api-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: nest
+    ports:
+      - 3306:3306
+    # volumes:
+    #   - ./.docker/dbdata:/var/lib/MYSQL_DATABASE
