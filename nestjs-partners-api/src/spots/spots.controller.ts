@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { SpotsService } from './spots.service';
 import { CreateSpotDto } from './dto/create-spot.dto';
@@ -16,6 +18,7 @@ export class SpotsController {
   constructor(private readonly spotsService: SpotsService) {}
 
   @Post()
+  @UsePipes(new ValidationPipe({ errorHttpStatusCode: 422 }))
   create(
     @Body() createSpotRequest: CreateSpotDto,
     @Param('eventId') eventId: string,
@@ -32,13 +35,13 @@ export class SpotsController {
   }
 
   @Get(':spotId')
-  findOne(@Param('id') spotId: string, @Param('eventId') eventId: string) {
+  findOne(@Param('spotId') spotId: string, @Param('eventId') eventId: string) {
     return this.spotsService.findOne(eventId, spotId);
   }
 
   @Patch(':spotId')
   update(
-    @Param('id') spotId: string,
+    @Param('spotId') spotId: string,
     @Param('eventId') eventId: string,
     @Body() updateSpotRequest: UpdateSpotDto,
   ) {
@@ -46,7 +49,7 @@ export class SpotsController {
   }
 
   @Delete(':spotId')
-  remove(@Param('id') spotId: string, @Param('eventId') eventId: string) {
+  remove(@Param('spotId') spotId: string, @Param('eventId') eventId: string) {
     return this.spotsService.remove(eventId, spotId);
   }
 }

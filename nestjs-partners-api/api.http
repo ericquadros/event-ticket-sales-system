@@ -13,8 +13,7 @@ Content-Type: application/json
 {
     "name": "New Event",
     "description": "This is a new event",
-    "date": "2017-01-01T00:00:00",
-    "price": 100
+    "date": "2017-01-01T00:00:00"
 }
 ###
 @eventId = {{ createEvent.response.body.id }}
@@ -59,6 +58,19 @@ X-Api-Token: 1234
 
 {
   "spots": ["{{ spotName }}"],
+  "ticket_kind": "full",
+  "email": "test@test.com"
+}
+
+
+###
+// Testing with not found spot
+POST {{apiBaseUrl}}/events/{{eventId}}/reserve
+Content-Type: application/json
+X-Api-Token: 1234
+
+{
+  "spots": ["A7"],
   "ticket_kind": "full",
   "email": "test@test.com"
 }

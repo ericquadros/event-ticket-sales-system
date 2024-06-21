@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -45,38 +45,53 @@ export class EventsService {
   }
 
   async reserveSpot(dto: ReserveSpotDto & { eventId: string }) {
-    const spots = await this.prismaService.spot.findMany({
+    const { eventId, spots, ticket_kind, email } = dto;
+
+    // Verifica se todos os spots são válidos
+    const foundSpots = await this.prismaService.spot.findMany({
       where: {
-        eventId: dto.eventId,
+        eventId,
         name: {
-          in: dto.spots,
+          in: spots,
         },
       },
     });
-    if (spots.length !== dto.spots.length) {
-      const foundSpotsName = spots.map((spot) => spot.name);
-      const notFoundSpotsName = dto.spots.filter(
-        (spotName) => !foundSpotsName.includes(spotName),
+
+    if (foundSpots.length !== spots.length) {
+      const foundSpotNames = foundSpots.map((spot) => spot.name);
+      const invalidSpots = spots.filter(
+        (spot) => !foundSpotNames.includes(spot),
       );
-      throw new Error(`Spots ${notFoundSpotsName.join(', ')} not found`);
+      throw new BadRequestException(
+        `Spots ${invalidSpots.join(', ')} not found`,
+      );
+    }
+
+    // Verifica se ticket_kind é 'full' ou 'half'
+    if (!['full', 'half'].includes(ticket_kind)) {
+      throw new BadRequestException(
+        `Invalid ticket_kind. Must be 'full' or 'half'.`,
+      );
     }
 
     try {
-      const tickets = await this.prismaService.$transaction(
+      const reservedTickets = await this.prismaService.$transaction(
         async (prisma) => {
+          // Cria histórico de reserva para cada spot encontrado
           await prisma.reservationHistory.createMany({
-            data: spots.map((spot) => ({
+            data: foundSpots.map((spot) => ({
               spotId: spot.id,
-              ticketKind: dto.ticket_kind,
-              email: dto.email,
+              ticketKind: ticket_kind,
+              email,
               status: TicketStatus.reserved,
             })),
           });
 
+          // Atualiza status dos spots para 'reserved'
           await prisma.spot.updateMany({
             where: {
               id: {
-                in: spots.map((spot) => spot.id),
+                in: foundSpots.map((spot) => spot.id),
               },
             },
             data: {
@@ -84,32 +99,38 @@ export class EventsService {
             },
           });
 
-          const tickets = await Promise.all(
-            spots.map((spot) =>
+          // Cria os tickets individuais
+          const createdTickets = await Promise.all(
+            foundSpots.map((spot) =>
               prisma.ticket.create({
                 data: {
                   spotId: spot.id,
-                  ticketKind: dto.ticket_kind,
-                  email: dto.email,
+                  ticketKind: ticket_kind,
+                  email,
                 },
               }),
             ),
           );
 
-          return tickets;
+          return createdTickets;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
       );
-      return tickets;
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        switch (e.code) {
-          case 'P2002': // unique constraint violation
-          case 'P2034': // transaction conflict
-            throw new Error('Some spots are already reserved');
+
+      return reservedTickets;
+    } catch (error) {
+      // Captura erros específicos do Prisma
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        switch (error.code) {
+          case 'P2002': // violação de constraint única
+          case 'P2034': // conflito de transação
+            throw new BadRequestException('Some spots are already reserved');
+          default:
+            throw new Error(error.message);
         }
       }
-      throw e;
+
+      throw new Error(error.message);
     }
   }
 }

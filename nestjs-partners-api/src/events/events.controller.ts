@@ -8,6 +8,8 @@ import {
   Delete,
   HttpCode,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -20,6 +22,7 @@ export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Post()
+  @UsePipes(new ValidationPipe({ errorHttpStatusCode: 422 }))
   create(@Body() createEventRequest: CreateEventDto) {
     return this.eventsService.create(createEventRequest);
   }
@@ -46,10 +49,11 @@ export class EventsController {
   }
 
   @UseGuards(AuthGuard)
-  @Post(':id/reserve')
+  @Post(':eventId/reserve')
+  @UsePipes(new ValidationPipe({ errorHttpStatusCode: 422 }))
   reserveSpots(
     @Body() reserveRequest: ReserveSpotDto,
-    @Param('id') eventId: string,
+    @Param('eventId') eventId: string,
   ) {
     return this.eventsService.reserveSpot({ ...reserveRequest, eventId });
   }
