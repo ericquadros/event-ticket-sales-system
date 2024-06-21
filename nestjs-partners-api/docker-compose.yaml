@@ -1,11 +1,12 @@
 services:
 
-  # app:
-  #   build: .
-  #   ports:
-  #     - 3000:3000
-  #   volumes:
-  #     - .:/home/node/app
+  app:
+    build: .
+    container_name: partners-api-app
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/home/node/app
 
   db:
     image: mysql:8.4
@@ -15,5 +16,5 @@ services:
       MYSQL_DATABASE: nest
     ports:
       - 3306:3306
-    # volumes:
-    #   - ./.docker/dbdata:/var/lib/MYSQL_DATABASE
+    volumes:
+      - ./.docker/dbdata:/var/lib/MYSQL_DATABASE
