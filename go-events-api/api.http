@@ -57,13 +57,25 @@ POST {{apiBaseUrl}}/events/{{ eventId }}/spots
 Content-Type: application/json
 
 {
+  "name": "A2",
+  "status": "available",
+  "event_id": {{ eventId }}
+}
+
+###
+# @name createSpot
+POST {{apiBaseUrl}}/events/{{ eventId }}/spots
+Content-Type: application/json
+
+{
   "name": "A3",
   "status": "available",
   "event_id": {{ eventId }}
 }
 
 ###
-@spotName = {{ createSpot.response.body.name }}
+# @spotName = {{ createSpot.response.body.name }}
+@spotName = A3
 
 ###
 POST {{apiBaseUrl}}/events/{{ eventId }}/reserve
@@ -83,6 +95,18 @@ Content-Type: application/json
 
 {
   "spots": ["A7"],
+  "ticket_kind": "full",
+  "email": "test@test.com"
+}
+
+
+###
+// Testing reserving A2 and A3
+POST {{apiBaseUrl}}/events/{{ eventId }}/reserve
+Content-Type: application/json
+
+{
+  "spots": ["A2", "A3"],
   "ticket_kind": "full",
   "email": "test@test.com"
 }
