@@ -1,10 +1,10 @@
 @apiBaseUrl = http://localhost:8080
 
 # GET /events
+###
 GET {{apiBaseUrl}}/events
 
 
-# POST /events
 ###
 # @name createEvent
 POST {{apiBaseUrl}}/events
@@ -20,12 +20,15 @@ Content-Type: application/json
     "created_at": "2023-09-20T00:10:10",
     "location": "New Location"
 }
-###
-@eventId = {{ createEvent.response.body.id }}
 
-# GET /events/:eventId
+ 
+# @eventId = {{ createEvent.response.body.id }}
+@eventId = 2
+
+# GET /events/{eventId}
 ###
 GET {{apiBaseUrl}}/events/{{ eventId }}
+
 
 ###
 PATCH {{apiBaseUrl}}/events/{{ eventId }}

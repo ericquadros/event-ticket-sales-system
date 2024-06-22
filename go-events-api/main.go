@@ -95,6 +95,9 @@ func getEvent(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	eventID, _ := strconv.Atoi(params["eventId"])
 
+	// Logar o ID do novo evento
+	log.Printf("New event created with ID: %d", eventID)
+
 	for _, event := range data.Events {
 		if event.ID == eventID {
 			json.NewEncoder(w).Encode(event)
@@ -157,6 +160,66 @@ func reserveSpot(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+
+// Handler para atualizar um evento
+func updateEvent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	eventID, _ := strconv.Atoi(params["eventId"])
+
+	var updatedEvent Event
+
+	// Decodificar o corpo da solicitação para obter os novos dados do evento
+	if err := json.NewDecoder(r.Body).Decode(&updatedEvent); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	// Atualizar o evento correspondente na lista de eventos
+	for i := range data.Events {
+		if data.Events[i].ID == eventID {
+			data.Events[i] = updatedEvent
+			json.NewEncoder(w).Encode(data.Events[i])
+			return
+		}
+	}
+
+	http.Error(w, "Event not found", http.StatusNotFound)
+}
+
+// Handler para deletar um evento
+func deleteEvent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	eventID, _ := strconv.Atoi(params["eventId"])
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	// Remover o evento da lista de eventos
+	for i, event := range data.Events {
+		if event.ID == eventID {
+			// Remover todos os spots associados a este evento
+			for j := len(data.Spots) - 1; j >= 0; j-- {
+				if data.Spots[j].EventID == eventID {
+					data.Spots = append(data.Spots[:j], data.Spots[j+1:]...)
+				}
+			}
+
+			// Remover o evento da lista de eventos
+			data.Events = append(data.Events[:i], data.Events[i+1:]...)
+
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+
+	http.Error(w, "Event not found", http.StatusNotFound)
+}
+
 func main() {
 	loadData()
 
@@ -164,6 +227,8 @@ func main() {
 	r.HandleFunc("/events", getEvents).Methods("GET")
 	r.HandleFunc("/events", createEvent).Methods("POST")
 	r.HandleFunc("/events/{eventId}", getEvent).Methods("GET")
+	r.HandleFunc("/events/{eventId}", updateEvent).Methods("PATCH") // Rota para atualização de evento
+	r.HandleFunc("/events/{eventId}", deleteEvent).Methods("DELETE") // Rota para exclusão de evento
 	r.HandleFunc("/events/{eventId}/spots", getSpots).Methods("GET")
 	r.HandleFunc("/events/{eventId}/reserve", reserveSpot).Methods("POST")
 
