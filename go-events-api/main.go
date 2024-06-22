@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/gorilla/mux"
 )
 
+// Estruturas de dados para eventos e spots
 type Event struct {
 	ID           int    `json:"id"`
 	Name         string `json:"name"`
@@ -36,8 +38,12 @@ type Data struct {
 	Spots  []Spot  `json:"spots"`
 }
 
-var data Data
+var (
+	data  Data
+	mutex sync.Mutex // Mutex para sincronizar o acesso aos dados em memória
+)
 
+// Carrega dados do arquivo JSON
 func loadData() {
 	file, err := os.Open("data.json")
 	if err != nil {
@@ -56,11 +62,34 @@ func loadData() {
 	}
 }
 
+// Handler para listar todos os eventos
 func getEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data.Events)
 }
 
+// Handler para criar um novo evento
+func createEvent(w http.ResponseWriter, r *http.Request) {
+	var newEvent Event
+
+	// Decodificar o corpo da solicitação para o novo evento
+	if err := json.NewDecoder(r.Body).Decode(&newEvent); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	// Adicionar um ID único ao novo evento
+	newEvent.ID = len(data.Events) + 1
+	data.Events = append(data.Events, newEvent)
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(newEvent)
+}
+
+// Handler para listar um evento específico
 func getEvent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -76,6 +105,7 @@ func getEvent(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Event not found", http.StatusNotFound)
 }
 
+// Handler para listar os lugares de um evento específico
 func getSpots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -91,6 +121,7 @@ func getSpots(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(eventSpots)
 }
 
+// Handler para reservar um lugar
 func reserveSpot(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -105,6 +136,9 @@ func reserveSpot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	for _, spotName := range requestBody.Spots {
 		for i, spot := range data.Spots {
@@ -128,6 +162,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/events", getEvents).Methods("GET")
+	r.HandleFunc("/events", createEvent).Methods("POST")
 	r.HandleFunc("/events/{eventId}", getEvent).Methods("GET")
 	r.HandleFunc("/events/{eventId}/spots", getSpots).Methods("GET")
 	r.HandleFunc("/events/{eventId}/reserve", reserveSpot).Methods("POST")
